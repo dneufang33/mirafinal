@@ -1,0 +1,212 @@
+/* Handwriting Font */
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;600;700&family=Playfair+Display:wght@400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(47, 96%, 53%);
+  --primary-foreground: hsl(26, 83%, 14%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+  --radius: 0.5rem;
+  
+  /* Custom Cosmic Colors */
+  --cosmic-purple: hsl(259, 72%, 15%);
+  --cosmic-blue: hsl(210, 40%, 8%);
+  --cosmic-gold: hsl(47, 96%, 53%);
+  --cosmic-rose: hsl(351, 50%, 72%);
+  --cosmic-gray: hsl(259, 60%, 25%);
+  --cosmic-white: hsl(300, 20%, 99%);
+  --cosmic-aurora: hsl(174, 72%, 56%);
+  --cosmic-amber: hsl(39, 100%, 64%);
+}
+
+.dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(47, 96%, 53%);
+  --primary-foreground: hsl(26, 83%, 14%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    background: linear-gradient(135deg, var(--cosmic-purple) 0%, var(--cosmic-gray) 50%, var(--cosmic-blue) 100%);
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .cosmic-gradient {
+    background: linear-gradient(135deg, var(--cosmic-purple) 0%, var(--cosmic-gray) 50%, var(--cosmic-blue) 100%);
+  }
+  
+  .nebula-bg {
+    background: 
+      radial-gradient(ellipse at top, hsl(47, 96%, 53%, 0.1) 0%, transparent 70%),
+      radial-gradient(ellipse at bottom left, hsl(351, 50%, 72%, 0.1) 0%, transparent 70%),
+      radial-gradient(ellipse at bottom right, hsl(174, 72%, 56%, 0.1) 0%, transparent 70%);
+  }
+  
+  .glow-orb {
+    background: radial-gradient(circle, hsl(47, 96%, 53%, 0.6) 0%, hsl(47, 96%, 53%, 0.2) 40%, transparent 70%);
+    animation: pulseGlow 3s ease-in-out infinite alternate;
+  }
+  
+  .mystical-card {
+    background: hsl(300, 20%, 99%, 0.05);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(47, 96%, 53%, 0.2);
+  }
+  
+  .shimmer-text {
+    background: linear-gradient(90deg, transparent, hsl(47, 96%, 53%, 0.8), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  
+  .cosmic-input {
+    background: hsl(300, 20%, 99%, 0.05);
+    border: 1px solid hsl(47, 96%, 53%, 0.3);
+    backdrop-filter: blur(8px);
+  }
+  
+  .cosmic-input:focus {
+    border-color: hsl(47, 96%, 53%, 0.8);
+    box-shadow: 0 0 20px hsl(47, 96%, 53%, 0.3);
+  }
+}
+
+@keyframes pulseGlow {
+  0% { 
+    box-shadow: 0 0 20px hsl(47, 96%, 53%, 0.4); 
+  }
+  100% { 
+    box-shadow: 0 0 40px hsl(47, 96%, 53%, 0.8), 0 0 60px hsl(47, 96%, 53%, 0.4); 
+  }
+}
+
+@keyframes float {
+  0%, 100% { 
+    transform: translateY(0px) rotate(0deg); 
+  }
+  50% { 
+    transform: translateY(-10px) rotate(5deg); 
+  }
+}
+
+@keyframes cosmicSpin {
+  0% { 
+    transform: rotate(0deg); 
+  }
+  100% { 
+    transform: rotate(360deg); 
+  }
+}
+
+@keyframes shimmer {
+  0% { 
+    background-position: -200% 0; 
+  }
+  100% { 
+    background-position: 200% 0; 
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite alternate;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-cosmic-spin {
+  animation: cosmicSpin 20s linear infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--cosmic-purple);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--cosmic-gold);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cosmic-amber);
+}
+
+/* Ripple Effect */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: hsl(47, 96%, 53%, 0.4);
+  transform: scale(0);
+  animation: rippleEffect 0.6s linear;
+  pointer-events: none;
+}
+
+@keyframes rippleEffect {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.font-dancing {
+  font-family: 'Dancing Script', cursive;
+}
+
+.font-playfair {
+  font-family: 'Playfair Display', serif;
+}
