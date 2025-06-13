@@ -4,17 +4,20 @@ import Stripe from "stripe";
 import { storage } from "./storage";
 import { insertUserSchema, insertQuestionnaireSchema, insertReadingSchema } from "@shared/schema";
 import { z } from "zod";
+import bcrypt from "bcrypt";
+import session from "express-session";
+
+declare module "express-session" {
+  interface SessionData {
+    userId?: number;
+  }
+}
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
 }
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16",
-});
-
-// Mock user session for development
-let currentUser: any = null;
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -28,8 +31,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User already exists" });
       }
 
-      const user = await storage.createUser(userData);
-      currentUser = user;
+      // Hash password
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
+      const user = await storage.createUser({ ...userData, password: hashedPassword });
+      req.session.userId = user.id;
       res.json({ user: { id: user.id, username: user.username, email: user.email, fullName: user.fullName } });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -45,7 +50,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      currentUser = user;
+      req.session.userId = user.id;
       res.json({ user: { id: user.id, username: user.username, email: user.email, fullName: user.fullName, isAdmin: user.isAdmin } });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -53,37 +58,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/auth/logout", (req, res) => {
-    currentUser = null;
-    res.json({ message: "Logged out successfully" });
+    req.session.destroy(() => {
+      res.json({ message: "Logged out successfully" });
+    });
   });
 
-  app.get("/api/auth/me", (req, res) => {
-    if (!currentUser) {
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.session.userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
-    res.json({ user: { id: currentUser.id, username: currentUser.username, email: currentUser.email, fullName: currentUser.fullName, isAdmin: currentUser.isAdmin } });
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    res.json({ user: { id: user.id, username: user.username, email: user.email, fullName: user.fullName, isAdmin: user.isAdmin } });
   });
 
   // Questionnaire routes
   app.post("/api/questionnaire", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
     try {
-      if (!currentUser) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
       const questionnaireData = insertQuestionnaireSchema.parse({
         ...req.body,
-        userId: currentUser.id
+        userId: user.id
       });
 
       const questionnaire = await storage.createQuestionnaire(questionnaireData);
       
       // Generate a basic reading after questionnaire completion
       await storage.createReading({
-        userId: currentUser.id,
+        userId: user.id,
         questionnaireId: questionnaire.id,
         title: "Your Sacred Birth Chart Reading",
-        content: `Welcome to your cosmic blueprint, ${currentUser.fullName}! As a ${questionnaire.zodiacSign}, your celestial journey began on ${questionnaire.birthDate} in ${questionnaire.birthCity}, ${questionnaire.birthCountry}. The stars have aligned to reveal profound insights about your spiritual path and life purpose. Your birth chart shows strong influences in the realm of ${questionnaire.spiritualGoals}, while your relationships have taught you valuable lessons about ${questionnaire.relationshipHistory}. The universe calls you to focus on ${questionnaire.lifeIntentions} as you move forward on your sacred journey.`,
+        content: `Welcome to your cosmic blueprint, ${user.fullName}! As a ${questionnaire.zodiacSign}, your celestial journey began on ${questionnaire.birthDate} in ${questionnaire.birthCity}, ${questionnaire.birthCountry}. The stars have aligned to reveal profound insights about your spiritual path and life purpose. Your birth chart shows strong influences in the realm of ${questionnaire.spiritualGoals}, while your relationships have taught you valuable lessons about ${questionnaire.relationshipHistory}. The universe calls you to focus on ${questionnaire.lifeIntentions} as you move forward on your sacred journey.`,
         readingType: "birth_chart",
         isPaid: false
       });
@@ -95,12 +108,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/questionnaire", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
     try {
-      if (!currentUser) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      const questionnaire = await storage.getQuestionnaireByUserId(currentUser.id);
+      const questionnaire = await storage.getQuestionnaireByUserId(user.id);
       res.json({ questionnaire });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -109,12 +125,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Readings routes
   app.get("/api/readings", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
     try {
-      if (!currentUser) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      const readings = await storage.getReadingsByUserId(currentUser.id);
+      const readings = await storage.getReadingsByUserId(user.id);
       res.json({ readings });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -122,13 +141,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/readings/:id", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
     try {
-      if (!currentUser) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
       const reading = await storage.getReadingById(parseInt(req.params.id));
-      if (!reading || reading.userId !== currentUser.id) {
+      if (!reading || reading.userId !== user.id) {
         return res.status(404).json({ message: "Reading not found" });
       }
 
@@ -151,23 +173,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Stripe payment routes
   app.post("/api/create-payment-intent", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
     try {
-      if (!currentUser) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
       const { amount } = req.body;
       const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(amount * 100), // Convert to cents
         currency: "usd",
         metadata: {
-          userId: currentUser.id.toString()
+          userId: user.id.toString()
         }
       });
 
       // Store payment record
       await storage.createPayment({
-        userId: currentUser.id,
+        userId: user.id,
         stripePaymentIntentId: paymentIntent.id,
         amount: amount.toString(),
         currency: "usd",
@@ -182,22 +207,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post('/api/get-or-create-subscription', async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    let user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
     try {
-      if (!currentUser) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      let user = currentUser;
-
       if (user.stripeSubscriptionId) {
         const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
         const invoice = await stripe.invoices.retrieve(subscription.latest_invoice as string, {
           expand: ['payment_intent']
         });
+        const paymentIntent = (invoice as any).payment_intent;
 
         res.json({
           subscriptionId: subscription.id,
-          clientSecret: (invoice.payment_intent as any)?.client_secret,
+          clientSecret: paymentIntent?.client_secret,
         });
         return;
       }
@@ -219,8 +246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currency: 'usd',
         recurring: { interval: 'month' },
         product_data: {
-          name: 'Lunar Oracle Subscription',
-          description: 'Monthly cosmic wisdom and daily whispers'
+          name: 'Lunar Oracle Subscription'
         },
       });
 
@@ -232,14 +258,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       await storage.updateUserStripeInfo(user.id, customer.id, subscription.id);
-      currentUser = await storage.getUser(user.id);
+      user = await storage.getUser(user.id);
 
-      const invoice = subscription.latest_invoice as any;
-      const paymentIntent = invoice.payment_intent;
+      const invoice = await stripe.invoices.retrieve(subscription.latest_invoice as string, {
+        expand: ['payment_intent']
+      });
+      const paymentIntent = (invoice as any).payment_intent;
   
       res.json({
         subscriptionId: subscription.id,
-        clientSecret: paymentIntent.client_secret,
+        clientSecret: paymentIntent?.client_secret,
       });
     } catch (error: any) {
       return res.status(400).json({ error: { message: error.message } });
@@ -248,11 +276,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin routes
   app.get("/api/admin/users", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    const user = await storage.getUser(req.session.userId);
+    if (!user || !user.isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
     try {
-      if (!currentUser || !currentUser.isAdmin) {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       const users = await storage.getAllUsers();
       res.json({ users });
     } catch (error: any) {
@@ -261,11 +292,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/admin/stats", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    const user = await storage.getUser(req.session.userId);
+    if (!user || !user.isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
     try {
-      if (!currentUser || !currentUser.isAdmin) {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       const users = await storage.getAllUsers();
       const payments = await storage.getAllPayments();
       const readings = await storage.getAllReadings();
@@ -288,11 +322,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/admin/questionnaires", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    const user = await storage.getUser(req.session.userId);
+    if (!user || !user.isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
     try {
-      if (!currentUser || !currentUser.isAdmin) {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       const questionnaires = await storage.getAllQuestionnaires();
       res.json({ questionnaires });
     } catch (error: any) {
