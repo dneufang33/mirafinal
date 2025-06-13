@@ -35,6 +35,7 @@ function App() {
           <CosmicOrbs />
           <Navigation />
           <main className="relative z-10">
+            <h1> (Debug) App Mounted – Cosmic Orbs & Navigation (or “cosmic gradient”) rendered. (If you see this, the app “mounts” (or “renders”) – and the “cosmic orbs” (or “cosmic gradient”) is “rendered” – so that we can confirm if the app “mounts” (or “renders”) at all.) </h1>
             <Router />
           </main>
           <Toaster />
