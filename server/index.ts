@@ -87,25 +87,28 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || err.statusCode || 500;
   const message = config.isProduction ? "Internal Server Error" : err.message;
 
-  // Log error in production
   if (config.isProduction) {
     log(`Error: ${err.message}`, "error");
-    // Here you could also send to error tracking service like Sentry
   }
 
   res.status(status).json({ message });
 });
 
-(async () => {
-  const server = await registerRoutes(app);
+// Initialize routes
+const server = await registerRoutes(app);
 
-  // Setup static file serving or Vite dev server
-  if (config.isProduction) {
-    serveStatic(app);
-  } else {
-    await setupVite(app, server);
-  }
+// Setup static file serving or Vite dev server
+if (config.isProduction) {
+  serveStatic(app);
+} else {
+  await setupVite(app, server);
+}
 
+// For Vercel serverless deployment
+export default app;
+
+// For local development
+if (process.env.NODE_ENV !== 'production') {
   const port = config.port;
   server.listen({
     port,
@@ -113,4 +116,4 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   }, () => {
     log(`Server running in ${config.isProduction ? 'production' : 'development'} mode on port ${port}`);
   });
-})();
+}

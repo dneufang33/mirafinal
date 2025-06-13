@@ -1,13 +1,11 @@
-import { neon } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-http';
-import { migrate } from 'drizzle-orm/neon-http/migrator';
-import * as schema from '../shared/schema.js';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import readline from 'readline';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const { neon } = require('@neondatabase/serverless');
+const { drizzle } = require('drizzle-orm/neon-http');
+const { migrate } = require('drizzle-orm/neon-http/migrator');
+const schema = require('../shared/schema.js');
+const fs = require('fs/promises');
+const path = require('path');
+const readline = require('readline');
+const crypto = require('crypto');
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -46,27 +44,7 @@ async function createDatabase() {
     await sql.query(sessionsSql);
 
     // Create .env file
-    const envContent = `# Server Configuration
-NODE_ENV=development
-PORT=5000
-
-# Database Configuration
-DATABASE_URL=${dbUrl}
-
-# Session Configuration
-SESSION_SECRET=${Buffer.from(crypto.randomBytes(32)).toString('hex')}
-
-# Stripe Configuration (Test Keys)
-STRIPE_SECRET_KEY=sk_test_your_stripe_test_key
-STRIPE_WEBHOOK_SECRET=whsec_your_stripe_webhook_secret
-
-# Security
-CORS_ORIGIN=http://localhost:5000
-COOKIE_DOMAIN=localhost
-
-# Optional: Error Tracking
-SENTRY_DSN=your_sentry_dsn_here
-`;
+    const envContent = `# Server Configuration\nNODE_ENV=development\nPORT=5000\n\n# Database Configuration\nDATABASE_URL=${dbUrl}\n\n# Session Configuration\nSESSION_SECRET=${Buffer.from(crypto.randomBytes(32)).toString('hex')}\n\n# Stripe Configuration (Test Keys)\nSTRIPE_SECRET_KEY=sk_test_your_stripe_test_key\nSTRIPE_WEBHOOK_SECRET=whsec_your_stripe_webhook_secret\n\n# Security\nCORS_ORIGIN=http://localhost:5000\nCOOKIE_DOMAIN=localhost\n\n# Optional: Error Tracking\nSENTRY_DSN=your_sentry_dsn_here\n`;
 
     await fs.writeFile(path.join(__dirname, '../.env'), envContent);
     console.log('Created .env file with database configuration');

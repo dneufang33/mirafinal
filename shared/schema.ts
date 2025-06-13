@@ -64,32 +64,11 @@ export const dailyInsights = pgTable("daily_insights", {
 });
 
 // Insert schemas
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  email: true,
-  password: true,
-  fullName: true,
-});
-
-export const insertQuestionnaireSchema = createInsertSchema(questionnaires).omit({
-  id: true,
-  completedAt: true,
-});
-
-export const insertReadingSchema = createInsertSchema(readings).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertPaymentSchema = createInsertSchema(payments).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertDailyInsightSchema = createInsertSchema(dailyInsights).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertUserSchema = createInsertSchema(users);
+export const insertQuestionnaireSchema = createInsertSchema(questionnaires);
+export const insertReadingSchema = createInsertSchema(readings);
+export const insertPaymentSchema = createInsertSchema(payments);
+export const insertDailyInsightSchema = createInsertSchema(dailyInsights);
 
 // Types
 export type User = typeof users.$inferSelect;
