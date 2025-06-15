@@ -1,22 +1,27 @@
-import { Questionnaire, Reading } from "../shared/schema";
+import { type Questionnaire, type Reading } from "../shared/schema";
 
 export interface IStorage {
+  // Questionnaire methods
   createQuestionnaire(data: Omit<Questionnaire, "id" | "createdAt">): Promise<Questionnaire>;
   getQuestionnaireById(id: number): Promise<Questionnaire | undefined>;
+  getAllQuestionnaires(): Promise<Questionnaire[]>;
+
+  // Reading methods
   createReading(data: Omit<Reading, "id" | "createdAt">): Promise<Reading>;
   getReadingById(id: number): Promise<Reading | undefined>;
+  getReadingsByQuestionnaireId(questionnaireId: number): Promise<Reading[]>;
+  getAllReadings(): Promise<Reading[]>;
 }
 
-class MemStorage implements IStorage {
+export class MemStorage implements IStorage {
   private questionnaires: Questionnaire[] = [];
   private readings: Reading[] = [];
-  private nextQuestionnaireId = 1;
-  private nextReadingId = 1;
 
+  // Questionnaire methods
   async createQuestionnaire(data: Omit<Questionnaire, "id" | "createdAt">): Promise<Questionnaire> {
     const questionnaire: Questionnaire = {
-      id: this.nextQuestionnaireId++,
       ...data,
+      id: Date.now(),
       createdAt: new Date()
     };
     this.questionnaires.push(questionnaire);
@@ -27,10 +32,15 @@ class MemStorage implements IStorage {
     return this.questionnaires.find(q => q.id === id);
   }
 
+  async getAllQuestionnaires(): Promise<Questionnaire[]> {
+    return [...this.questionnaires];
+  }
+
+  // Reading methods
   async createReading(data: Omit<Reading, "id" | "createdAt">): Promise<Reading> {
     const reading: Reading = {
-      id: this.nextReadingId++,
       ...data,
+      id: Date.now(),
       createdAt: new Date()
     };
     this.readings.push(reading);
@@ -39,6 +49,14 @@ class MemStorage implements IStorage {
 
   async getReadingById(id: number): Promise<Reading | undefined> {
     return this.readings.find(r => r.id === id);
+  }
+
+  async getReadingsByQuestionnaireId(questionnaireId: number): Promise<Reading[]> {
+    return this.readings.filter(r => r.questionnaireId === questionnaireId);
+  }
+
+  async getAllReadings(): Promise<Reading[]> {
+    return [...this.readings];
   }
 }
 
