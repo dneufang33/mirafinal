@@ -37,4 +37,40 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
   };
 
   await transporter.sendMail(mailOptions);
+}
+
+export async function sendReadingEmail(
+  to: string,
+  pdfBuffer: Buffer,
+  subject: string
+): Promise<void> {
+  const mailOptions = {
+    from: `"Celestial Mira" <${config.smtpUser}>`,
+    to,
+    subject,
+    text: `Dear Seeker,
+
+Thank you for trusting Celestial Mira with your cosmic journey. Your personalized reading is attached to this email.
+
+The stars have aligned to bring you this sacred message, crafted with care and cosmic wisdom. Take time to reflect on the insights provided, as they are uniquely tailored to your celestial blueprint.
+
+May this reading guide you on your path to enlightenment and self-discovery.
+
+With cosmic blessings,
+The Celestial Mira Team`,
+    attachments: [
+      {
+        filename: "your-sacred-reading.pdf",
+        content: pdfBuffer,
+        contentType: "application/pdf"
+      }
+    ]
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error("Error sending reading email:", error);
+    throw new Error("Failed to send reading email");
+  }
 } 

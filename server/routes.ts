@@ -1,12 +1,15 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import Stripe from "stripe";
-import { storage } from "./storage";
-import { insertQuestionnaireSchema, insertReadingSchema } from "@shared/schema";
+import { storage } from "./storage-new";
+import { insertQuestionnaireSchema } from "../shared/schema";
 import { z } from "zod";
 import session from "express-session";
 import cors from "cors";
 import authRouter from "./routes/auth";
+import OpenAI from "openai";
+import { generatePDF } from "./utils/pdf";
+import { sendReadingEmail } from "./utils/email";
 
 declare module "express-session" {
   interface SessionData {
@@ -20,39 +23,47 @@ if (!process.env.STRIPE_SECRET_KEY) {
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Mount auth routes
   app.use("/api/auth", authRouter);
 
   // Questionnaire routes
   app.post("/api/questionnaire", async (req, res) => {
-    if (!req.session.userId) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    const user = await storage.getUser(req.session.userId);
-    if (!user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
     try {
-      const questionnaireData = insertQuestionnaireSchema.parse({
-        ...req.body,
-        userId: user.id
-      });
-
-      const questionnaire = await storage.createQuestionnaire(questionnaireData);
+      const questionnaireData = insertQuestionnaireSchema.parse(req.body);
       
-      // Generate a basic reading after questionnaire completion
-      await storage.createReading({
-        userId: user.id,
+      // Store questionnaire
+      const questionnaire = await storage.createQuestionnaire(questionnaireData);
+
+      // Generate reading using OpenAI
+      const reading = await generateReading(questionnaireData);
+      
+      // Generate PDF
+      const pdfBuffer = await generatePDF(reading, questionnaireData);
+      
+      // Store reading
+      const storedReading = await storage.createReading({
         questionnaireId: questionnaire.id,
         title: "Your Sacred Birth Chart Reading",
-        content: `Welcome to your cosmic blueprint, ${user.fullName}! As a ${questionnaire.zodiacSign}, your celestial journey began on ${questionnaire.birthDate} in ${questionnaire.birthCity}, ${questionnaire.birthCountry}. The stars have aligned to reveal profound insights about your spiritual path and life purpose. Your birth chart shows strong influences in the realm of ${questionnaire.spiritualGoals}, while your relationships have taught you valuable lessons about ${questionnaire.relationshipHistory}. The universe calls you to focus on ${questionnaire.lifeIntentions} as you move forward on your sacred journey.`,
+        content: reading,
         readingType: "birth_chart",
         isPaid: false
       });
 
-      res.json({ questionnaire });
+      // Send email with PDF
+      await sendReadingEmail(questionnaireData.email, pdfBuffer, "Your Sacred Birth Chart Reading");
+
+      res.json({ 
+        questionnaire,
+        reading: storedReading,
+        message: "Your reading has been sent to your email"
+      });
     } catch (error: any) {
+      console.error("Questionnaire error:", error);
       res.status(400).json({ message: error.message });
     }
   });
@@ -114,8 +125,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/daily-insight", async (req, res) => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const insight = await storage.getDailyInsightByDate(today);
-      res.json({ insight });
+      res.json({ 
+        insight: {
+          title: "Today's Cosmic Guidance",
+          content: "The stars align to bring you wisdom and clarity. Trust in the universe's plan for you.",
+          date: today
+        }
+      });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
@@ -289,4 +305,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   return httpServer;
+}
+
+async function generateReading(data: any): Promise<string> {
+  const prompt = `As an experienced astrologer, create a profound and personalized reading based on the following birth chart information:
+
+Birth Date: ${data.birthDate}
+Zodiac Sign: ${data.zodiacSign}
+Birth Place: ${data.birthCity}, ${data.birthCountry}
+Age: ${data.age}
+Spiritual Goals: ${data.spiritualGoals}
+Relationship History: ${data.relationshipHistory}
+Life Intentions: ${data.lifeIntentions}
+
+Please provide a comprehensive reading that:
+1. Analyzes their cosmic blueprint and celestial influences
+2. Explores their spiritual path and life purpose
+3. Offers insights about their relationships and personal growth
+4. Provides guidance for their current life phase
+5. Includes specific astrological interpretations of their chart
+
+Make the reading profound, mystical, and deeply personal, using astrological terminology and cosmic wisdom.`;
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4-turbo-preview",
+    messages: [
+      {
+        role: "system",
+        content: "You are a master astrologer with deep knowledge of celestial wisdom, tarot, and spiritual guidance. Your readings are profound, mystical, and deeply personal, while maintaining a professional and authoritative tone."
+      },
+      {
+        role: "user",
+        content: prompt
+      }
+    ],
+    temperature: 0.7,
+    max_tokens: 2000
+  });
+
+  return completion.choices[0].message.content || "Unable to generate reading at this time.";
 }

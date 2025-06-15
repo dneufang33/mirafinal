@@ -33,13 +33,12 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
 
   // Questionnaire methods
-  createQuestionnaire(questionnaire: InsertQuestionnaire): Promise<Questionnaire>;
-  getQuestionnaireByUserId(userId: number): Promise<Questionnaire | undefined>;
+  createQuestionnaire(data: Omit<Questionnaire, "id" | "createdAt">): Promise<Questionnaire>;
+  getQuestionnaireById(id: number): Promise<Questionnaire | undefined>;
   getAllQuestionnaires(): Promise<Questionnaire[]>;
 
   // Reading methods
-  createReading(reading: InsertReading): Promise<Reading>;
-  getReadingsByUserId(userId: number): Promise<Reading[]>;
+  createReading(data: Omit<Reading, "id" | "createdAt">): Promise<Reading>;
   getReadingById(id: number): Promise<Reading | undefined>;
   getAllReadings(): Promise<Reading[]>;
 
@@ -72,6 +71,10 @@ export class MemStorage implements IStorage {
   private currentReadingId: number;
   private currentPaymentId: number;
   private currentInsightId: number;
+  private questionnaires: Questionnaire[] = [];
+  private readings: Reading[] = [];
+  private nextQuestionnaireId = 1;
+  private nextReadingId = 1;
 
   constructor() {
     this.users = new Map();
@@ -161,47 +164,41 @@ export class MemStorage implements IStorage {
   }
 
   // Questionnaire methods
-  async createQuestionnaire(insertQuestionnaire: InsertQuestionnaire): Promise<Questionnaire> {
-    const id = this.currentQuestionnaireId++;
+  async createQuestionnaire(data: Omit<Questionnaire, "id" | "createdAt">): Promise<Questionnaire> {
     const questionnaire: Questionnaire = {
-      ...insertQuestionnaire,
-      id,
-      completedAt: new Date()
+      id: this.nextQuestionnaireId++,
+      ...data,
+      createdAt: new Date()
     };
-    this.questionnaires.set(id, questionnaire);
+    this.questionnaires.push(questionnaire);
     return questionnaire;
   }
 
-  async getQuestionnaireByUserId(userId: number): Promise<Questionnaire | undefined> {
-    return Array.from(this.questionnaires.values()).find(q => q.userId === userId);
+  async getQuestionnaireById(id: number): Promise<Questionnaire | undefined> {
+    return this.questionnaires.find(q => q.id === id);
   }
 
   async getAllQuestionnaires(): Promise<Questionnaire[]> {
-    return Array.from(this.questionnaires.values());
+    return this.questionnaires;
   }
 
   // Reading methods
-  async createReading(insertReading: InsertReading): Promise<Reading> {
-    const id = this.currentReadingId++;
+  async createReading(data: Omit<Reading, "id" | "createdAt">): Promise<Reading> {
     const reading: Reading = {
-      ...insertReading,
-      id,
+      id: this.nextReadingId++,
+      ...data,
       createdAt: new Date()
     };
-    this.readings.set(id, reading);
+    this.readings.push(reading);
     return reading;
   }
 
-  async getReadingsByUserId(userId: number): Promise<Reading[]> {
-    return Array.from(this.readings.values()).filter(r => r.userId === userId);
-  }
-
   async getReadingById(id: number): Promise<Reading | undefined> {
-    return this.readings.get(id);
+    return this.readings.find(r => r.id === id);
   }
 
   async getAllReadings(): Promise<Reading[]> {
-    return Array.from(this.readings.values());
+    return this.readings;
   }
 
   // Payment methods
@@ -237,7 +234,7 @@ export class MemStorage implements IStorage {
   }
 
   async getDailyInsightByDate(date: string): Promise<DailyInsight | undefined> {
-    return Array.from(this.dailyInsights.values()).find(i => i.date === date && i.isActive);
+    return this.dailyInsights.values().find(i => i.date === date && i.isActive);
   }
 
   async getAllDailyInsights(): Promise<DailyInsight[]> {
