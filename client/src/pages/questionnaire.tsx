@@ -15,8 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  fullName: z.string().min(2, "Please enter your full name"),
-  username: z.string().min(3, "Username must be at least 3 characters"),
+  fullName: z.string().min(2, "Please enter your full name").optional(),
+  username: z.string().min(3, "Username must be at least 3 characters").optional(),
 });
 
 const Questionnaire = () => {
@@ -37,9 +37,22 @@ const Questionnaire = () => {
 
   const onAuthSubmit = (values: z.infer<typeof authSchema>) => {
     if (isLogin) {
-      login(values.email, values.password);
+      login({ email: values.email, password: values.password });
     } else {
-      register(values.username, values.email, values.password, values.fullName);
+      if (!values.username || !values.fullName) {
+        toast({
+          title: "Missing Information",
+          description: "Please provide all required information.",
+          variant: "destructive",
+        });
+        return;
+      }
+      register({
+        username: values.username,
+        email: values.email,
+        password: values.password,
+        fullName: values.fullName,
+      });
     }
   };
 
@@ -139,6 +152,18 @@ const Questionnaire = () => {
                     )}
                   />
 
+                  {isLogin && (
+                    <div className="text-right">
+                      <Button
+                        variant="link"
+                        onClick={() => setLocation("/forgot-password")}
+                        className="text-yellow-400 hover:text-yellow-300 p-0"
+                      >
+                        Forgot your cosmic key?
+                      </Button>
+                    </div>
+                  )}
+
                   <Button 
                     type="submit"
                     className="w-full bg-gradient-to-r from-yellow-400 to-pink-400 text-purple-900 font-semibold py-3 rounded-full hover:shadow-lg hover:shadow-yellow-400/30 transition-all duration-300"
@@ -151,24 +176,24 @@ const Questionnaire = () => {
                         : "Begin Cosmic Journey"
                     }
                   </Button>
+
+                  <div className="text-center">
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setIsLogin(!isLogin);
+                        form.reset();
+                      }}
+                      className="text-yellow-400 hover:text-yellow-300"
+                    >
+                      {isLogin 
+                        ? "New soul? Create your cosmic account" 
+                        : "Already have an account? Sign in"
+                      }
+                    </Button>
+                  </div>
                 </form>
               </Form>
-
-              <div className="mt-6 text-center">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setIsLogin(!isLogin);
-                    form.reset();
-                  }}
-                  className="text-yellow-400 hover:text-yellow-300"
-                >
-                  {isLogin 
-                    ? "New soul? Create your cosmic account" 
-                    : "Already have an account? Sign in"
-                  }
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </div>

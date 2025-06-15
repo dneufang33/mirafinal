@@ -1,6 +1,9 @@
+import { config as dotenvConfig } from "dotenv";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { Pool } from "pg";
+
+dotenvConfig();
 
 // Database connection pool
 const pool = new Pool({
@@ -36,7 +39,15 @@ export const config = {
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
 
   // Optional: Error tracking
-  sentryDsn: process.env.SENTRY_DSN
+  sentryDsn: process.env.SENTRY_DSN,
+
+  // Email configuration
+  smtpHost: process.env.SMTP_HOST || "smtp.gmail.com",
+  smtpPort: parseInt(process.env.SMTP_PORT || "587", 10),
+  smtpSecure: process.env.SMTP_SECURE === "true",
+  smtpUser: process.env.SMTP_USER,
+  smtpPass: process.env.SMTP_PASS,
+  frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
 } as const;
 
 // Validate required environment variables

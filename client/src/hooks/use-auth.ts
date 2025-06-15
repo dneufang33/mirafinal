@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { authService, type User } from "@/lib/auth";
+import { authService, type User, AuthError } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
 export function useAuth() {
@@ -24,9 +24,12 @@ export function useAuth() {
       });
     },
     onError: (error: any) => {
+      const message = error instanceof AuthError 
+        ? error.message 
+        : "An unexpected error occurred. Please try again.";
       toast({
         title: "Authentication Failed",
-        description: error.message || "Invalid credentials. Please try again.",
+        description: message,
         variant: "destructive",
       });
     },
@@ -47,9 +50,12 @@ export function useAuth() {
       });
     },
     onError: (error: any) => {
+      const message = error instanceof AuthError 
+        ? error.message 
+        : "An unexpected error occurred. Please try again.";
       toast({
         title: "Registration Failed",
-        description: error.message || "Could not create your account. Please try again.",
+        description: message,
         variant: "destructive",
       });
     },
@@ -63,6 +69,16 @@ export function useAuth() {
       toast({
         title: "Until we meet again",
         description: "You have been signed out of your cosmic sanctuary.",
+      });
+    },
+    onError: (error: any) => {
+      const message = error instanceof AuthError 
+        ? error.message 
+        : "An unexpected error occurred while signing out.";
+      toast({
+        title: "Sign Out Failed",
+        description: message,
+        variant: "destructive",
       });
     },
   });

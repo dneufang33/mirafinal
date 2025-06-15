@@ -57,6 +57,14 @@ app.use((req, res, next) => {
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
+  console.log('Incoming request:', {
+    method: req.method,
+    path: req.path,
+    headers: req.headers,
+    body: req.body,
+    query: req.query
+  });
+
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
     capturedJsonResponse = bodyJson;
@@ -70,6 +78,14 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
+
+      console.log('API Response:', {
+        method: req.method,
+        path: req.path,
+        statusCode: res.statusCode,
+        duration,
+        response: capturedJsonResponse
+      });
 
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "…";

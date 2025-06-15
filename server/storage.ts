@@ -7,6 +7,21 @@ import {
   type DailyInsight, type InsertDailyInsight
 } from "@shared/schema";
 
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  password: string;
+  fullName?: string;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  subscriptionStatus?: string | null;
+  isAdmin: boolean;
+  resetToken?: string | null;
+  resetTokenExpiry?: Date | null;
+  createdAt: Date;
+}
+
 export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
@@ -38,6 +53,12 @@ export interface IStorage {
   getDailyInsightByDate(date: string): Promise<DailyInsight | undefined>;
   getAllDailyInsights(): Promise<DailyInsight[]>;
   updateDailyInsight(id: number, insight: Partial<DailyInsight>): Promise<DailyInsight>;
+
+  // Reset methods
+  updateUserResetToken(userId: number, resetToken: string, resetTokenExpiry: Date): Promise<void>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
+  updateUserPassword(userId: number, hashedPassword: string): Promise<void>;
+  clearUserResetToken(userId: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -230,6 +251,48 @@ export class MemStorage implements IStorage {
     const updatedInsight = { ...insight, ...updates };
     this.dailyInsights.set(id, updatedInsight);
     return updatedInsight;
+  }
+
+  // Reset methods
+  async updateUserResetToken(userId: number, resetToken: string, resetTokenExpiry: Date): Promise<void> {
+    const user = this.users.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    this.users.set(userId, {
+      ...user,
+      resetToken,
+      resetTokenExpiry,
+    });
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      user => user.resetToken === token && user.resetTokenExpiry && user.resetTokenExpiry > new Date()
+    );
+  }
+
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<void> {
+    const user = this.users.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    this.users.set(userId, {
+      ...user,
+      password: hashedPassword,
+    });
+  }
+
+  async clearUserResetToken(userId: number): Promise<void> {
+    const user = this.users.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    this.users.set(userId, {
+      ...user,
+      resetToken: null,
+      resetTokenExpiry: null,
+    });
   }
 }
 
