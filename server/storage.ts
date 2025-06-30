@@ -33,13 +33,16 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
 
   // Questionnaire methods
-  createQuestionnaire(data: Omit<Questionnaire, "id" | "createdAt">): Promise<Questionnaire>;
+  createQuestionnaire(data: InsertQuestionnaire): Promise<Questionnaire>;
   getQuestionnaireById(id: number): Promise<Questionnaire | undefined>;
+  getQuestionnairesByUserId(userId: number): Promise<Questionnaire[]>;
   getAllQuestionnaires(): Promise<Questionnaire[]>;
 
   // Reading methods
-  createReading(data: Omit<Reading, "id" | "createdAt">): Promise<Reading>;
+  createReading(data: InsertReading): Promise<Reading>;
   getReadingById(id: number): Promise<Reading | undefined>;
+  getReadingsByUserId(userId: number): Promise<Reading[]>;
+  getReadingsByQuestionnaireId(questionnaireId: number): Promise<Reading[]>;
   getAllReadings(): Promise<Reading[]>;
 
   // Payment methods
@@ -71,10 +74,6 @@ export class MemStorage implements IStorage {
   private currentReadingId: number;
   private currentPaymentId: number;
   private currentInsightId: number;
-  private questionnaires: Questionnaire[] = [];
-  private readings: Reading[] = [];
-  private nextQuestionnaireId = 1;
-  private nextReadingId = 1;
 
   constructor() {
     this.users = new Map();
@@ -88,21 +87,21 @@ export class MemStorage implements IStorage {
     this.currentPaymentId = 1;
     this.currentInsightId = 1;
 
-    // Create admin user
-    this.createUser({
-      username: "admin",
-      email: "admin@mira.com",
-      password: "admin123",
-      fullName: "Mira Oracle Admin"
-    }).then(user => {
-      this.users.set(user.id, { ...user, isAdmin: true });
-    });
-
-    // Create sample daily insights
-    this.initializeDailyInsights();
+    // Initialize sample data
+    this.initializeSampleData();
   }
 
-  private async initializeDailyInsights() {
+  private async initializeSampleData() {
+    // Create admin user
+    const adminUser = await this.createUser({
+      username: "admin",
+      email: "admin@mira.com",
+      password: "$2b$10$rGfLQQQQQQQQQQQQQQQQQu", // "admin123" hashed
+      fullName: "Mira Oracle Admin"
+    });
+    this.users.set(adminUser.id, { ...adminUser, isAdmin: true });
+
+    // Create sample daily insights
     const today = new Date().toISOString().split('T')[0];
     await this.createDailyInsight({
       title: "Today's Cosmic Whisper",
@@ -164,41 +163,55 @@ export class MemStorage implements IStorage {
   }
 
   // Questionnaire methods
-  async createQuestionnaire(data: Omit<Questionnaire, "id" | "createdAt">): Promise<Questionnaire> {
+  async createQuestionnaire(data: InsertQuestionnaire): Promise<Questionnaire> {
+    const id = this.currentQuestionnaireId++;
     const questionnaire: Questionnaire = {
-      id: this.nextQuestionnaireId++,
       ...data,
-      createdAt: new Date()
+      id,
+      completedAt: new Date()
     };
-    this.questionnaires.push(questionnaire);
+    this.questionnaires.set(id, questionnaire);
     return questionnaire;
   }
 
   async getQuestionnaireById(id: number): Promise<Questionnaire | undefined> {
-    return this.questionnaires.find(q => q.id === id);
+    return this.questionnaires.get(id);
+  }
+
+  async getQuestionnairesByUserId(userId: number): Promise<Questionnaire[]> {
+    return Array.from(this.questionnaires.values()).filter(q => q.userId === userId);
   }
 
   async getAllQuestionnaires(): Promise<Questionnaire[]> {
-    return this.questionnaires;
+    return Array.from(this.questionnaires.values());
   }
 
   // Reading methods
-  async createReading(data: Omit<Reading, "id" | "createdAt">): Promise<Reading> {
+  async createReading(data: InsertReading): Promise<Reading> {
+    const id = this.currentReadingId++;
     const reading: Reading = {
-      id: this.nextReadingId++,
       ...data,
+      id,
       createdAt: new Date()
     };
-    this.readings.push(reading);
+    this.readings.set(id, reading);
     return reading;
   }
 
   async getReadingById(id: number): Promise<Reading | undefined> {
-    return this.readings.find(r => r.id === id);
+    return this.readings.get(id);
+  }
+
+  async getReadingsByUserId(userId: number): Promise<Reading[]> {
+    return Array.from(this.readings.values()).filter(r => r.userId === userId);
+  }
+
+  async getReadingsByQuestionnaireId(questionnaireId: number): Promise<Reading[]> {
+    return Array.from(this.readings.values()).filter(r => r.questionnaireId === questionnaireId);
   }
 
   async getAllReadings(): Promise<Reading[]> {
-    return this.readings;
+    return Array.from(this.readings.values());
   }
 
   // Payment methods
@@ -234,7 +247,7 @@ export class MemStorage implements IStorage {
   }
 
   async getDailyInsightByDate(date: string): Promise<DailyInsight | undefined> {
-    return this.dailyInsights.values().find(i => i.date === date && i.isActive);
+    return Array.from(this.dailyInsights.values()).find(i => i.date === date && i.isActive);
   }
 
   async getAllDailyInsights(): Promise<DailyInsight[]> {
